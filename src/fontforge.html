@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glyph·Forge — Pixel Font Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080c10;--panel:#0d1117;--card:#111820;--border:#1e2d3d;
+  --accent:#00f0ff;--accent2:#ff2d78;--accent3:#ffe000;--accent4:#a259ff;
+  --text:#c9d8e8;--muted:#4a6070;--success:#00ff88;
+  --font:'Share Tech Mono',monospace;--display:'Orbitron',monospace;
+}
+html,body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;height:100%;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);pointer-events:none;z-index:9999}
+
+header{padding:11px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;background:linear-gradient(90deg,#080c10,#0a1420);flex-shrink:0}
+header h1{font-family:var(--display);font-size:1.15rem;letter-spacing:.12em;background:linear-gradient(90deg,var(--accent4),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+header span{color:var(--muted);font-size:.78rem}
+.app{display:flex;height:calc(100vh - 44px);overflow:hidden}
+
+.left-panel{width:280px;min-width:200px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border);overflow-y:auto;background:var(--panel)}
+.right-panel{width:255px;flex-shrink:0;display:flex;flex-direction:column;border-left:1px solid var(--border);overflow-y:auto;background:var(--panel)}
+.center-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;background:radial-gradient(ellipse at center,#0d1520 0%,var(--bg) 70%);overflow:hidden;position:relative}
+
+.section{border-bottom:1px solid var(--border);padding:10px 11px}
+.stitle{font-family:var(--display);font-size:.57rem;letter-spacing:.2em;color:var(--accent4);text-transform:uppercase;margin-bottom:9px}
+
+button{font-family:var(--font);font-size:.76rem;border:1px solid var(--border);background:var(--card);color:var(--text);padding:5px 9px;cursor:pointer;border-radius:3px;transition:all .12s;white-space:nowrap}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.active-cyan{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700}
+button.active{background:var(--accent4);color:#fff;border-color:var(--accent4);font-weight:700}
+button.danger{border-color:var(--accent2);color:var(--accent2)}
+button.danger:hover{background:var(--accent2);color:#fff}
+button.ok{border-color:var(--success);color:var(--success)}
+button.ok:hover{background:var(--success);color:#000}
+button:disabled{opacity:.35;cursor:not-allowed}
+.brow{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+
+input[type=number],input[type=text],select,textarea{font-family:var(--font);font-size:.76rem;background:var(--card);border:1px solid var(--border);color:var(--text);padding:4px 7px;border-radius:3px;width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent4)}
+select option{background:var(--card)}
+.lbl{font-size:.7rem;color:var(--muted);display:block;margin-bottom:2px;margin-top:5px}
+
+#glyphCanvas{image-rendering:pixelated;cursor:crosshair;border:2px solid var(--accent4);box-shadow:0 0 22px rgba(162,89,255,.2),0 0 55px rgba(162,89,255,.05);display:block}
+#glyphCanvas.tool-erase{cursor:cell}
+#glyphCanvas.tool-pick{cursor:crosshair}
+#glyphCanvas.tool-fill{cursor:copy}
+#glyphCanvas.tool-rect,#glyphCanvas.tool-line{cursor:crosshair}
+
+#colorSwatch{width:100%;height:22px;border-radius:3px;border:1px solid var(--border);margin-bottom:5px}
+.pal-grid{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.pal-sw{width:18px;height:18px;flex:0 0 18px;border-radius:2px;border:2px solid transparent;cursor:pointer;transition:transform .1s,border-color .1s}
+.pal-sw:hover{transform:scale(1.25);border-color:var(--accent)}
+.pal-sw.sel{border-color:#fff;transform:scale(1.15)}
+.sl-row{display:flex;align-items:center;gap:4px;margin-bottom:3px}
+.sl-row em{width:11px;font-style:normal;font-size:.7rem;color:var(--muted)}
+.sl-row input[type=range]{flex:1;height:3px;cursor:pointer}
+.sl-row span{width:24px;text-align:right;font-size:.7rem}
+
+.guide-row{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.guide-color{width:12px;height:3px;border-radius:1px;flex-shrink:0}
+
+.char-tabs{display:flex;gap:2px;flex-wrap:wrap;margin-bottom:5px}
+.char-tabs button{padding:3px 6px;font-size:.65rem}
+#charGrid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;max-height:140px;overflow-y:auto}
+.ch-btn{padding:3px 0;font-size:.75rem;text-align:center;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;border-radius:2px;transition:all .1s;width:100%}
+.ch-btn:hover{border-color:var(--accent4);color:var(--accent4)}
+.ch-btn.has-data{border-color:var(--accent4);color:var(--accent4);background:rgba(162,89,255,.15)}
+.ch-btn.active-ch{background:var(--accent4);color:#fff;border-color:var(--accent4)}
+
+#glyphList{display:flex;flex-wrap:wrap;gap:3px;max-height:180px;overflow-y:auto;margin-top:5px}
+.gl-item{width:30px;height:30px;border:1px solid var(--border);border-radius:2px;overflow:hidden;cursor:pointer;position:relative;background:#111;flex-shrink:0}
+.gl-item canvas{image-rendering:pixelated;width:100%;height:100%;display:block}
+.gl-item.sel{border-color:var(--accent4);box-shadow:0 0 6px rgba(162,89,255,.5)}
+.gl-item .gl-lbl{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.8);font-size:.42rem;text-align:center;color:var(--muted);padding:1px}
+.gl-item:hover .gl-lbl{color:var(--accent)}
+
+.tool-btn{width:34px;height:26px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem}
+
+#statusBar{padding:4px 16px;font-size:.7rem;color:var(--accent3);border-top:1px solid var(--border);background:var(--panel);flex-shrink:0;min-height:24px;display:flex;align-items:center;gap:16px}
+
+.kbd{display:inline-block;background:var(--card);border:1px solid var(--border);border-radius:2px;padding:0 4px;font-size:.62rem;color:var(--muted)}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--accent4);border-radius:6px;padding:18px;width:460px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative}
+.modal h2{font-family:var(--display);font-size:.85rem;color:var(--accent4);margin-bottom:12px}
+.mcl{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:2px 6px}
+.mcl:hover{color:var(--accent2)}
+pre.code{font-size:.62rem;color:var(--accent3);background:var(--card);padding:9px;border-radius:3px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.55;user-select:all;max-height:400px;overflow-y:auto}
+
+#canvasWrap{position:relative;display:inline-block}
+#guideCanvas{position:absolute;top:0;left:0;pointer-events:none;image-rendering:pixelated}
+</style>
+</head>
+<body>
+<header>
+  <h1>GLYPH·FORGE</h1>
+  <span>pixel font builder</span>
+  <span style="margin-left:auto;color:var(--accent);font-size:.75rem" id="hdrInfo">0 glyphs defined</span>
+</header>
+
+<div class="app">
+
+<!-- LEFT PANEL -->
+<div class="left-panel">
+
+  <div class="section">
+    <div class="stitle">Font Settings</div>
+    <div style="margin-bottom:5px">
+      <div class="lbl">Font Name</div>
+      <input type="text" id="fontName" value="MyPixelFont">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px">
+      <div><div class="lbl">Cell W</div><input type="number" id="cellW" value="8" min="4" max="32" oninput="resizeCell()"></div>
+      <div><div class="lbl">Cell H</div><input type="number" id="cellH" value="12" min="4" max="48" oninput="resizeCell()"></div>
+      <div><div class="lbl">Ascent</div><input type="number" id="fontAscent" value="10" min="1" max="48" oninput="redrawGuides()"></div>
+      <div><div class="lbl">Descent</div><input type="number" id="fontDescent" value="2" min="0" max="16" oninput="redrawGuides()"></div>
+    </div>
+    <div class="lbl">Zoom</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <input type="range" id="zoomSl" min="4" max="24" value="12" oninput="applyZoom()" style="flex:1;accent-color:var(--accent4)">
+      <span id="zoomLbl" style="color:var(--accent4);font-size:.7rem;min-width:26px">12×</span>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:4px">
+      <label style="font-size:.65rem;color:var(--muted);display:flex;align-items:center;gap:4px"><input type="checkbox" id="showGrid" checked onchange="redrawGuides()" style="width:auto"> Grid</label>
+      <label style="font-size:.65rem;color:var(--muted);display:flex;align-items:center;gap:4px"><input type="checkbox" id="showGuides" checked onchange="redrawGuides()" style="width:auto"> Guides</label>
+    </div>
+    <div style="font-size:.63rem;color:var(--muted);line-height:1.8">
+      <span style="color:#ff2d78">━</span> Baseline &nbsp;
+      <span style="color:#00f0ff">━</span> Cap height &nbsp;
+      <span style="color:#ffe000">━</span> x-height
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">Character</div>
+    <div class="char-tabs" id="charTabs">
+      <button class="active" onclick="showCharSet('basic')">Basic</button>
+      <button onclick="showCharSet('upper')">A–Z</button>
+      <button onclick="showCharSet('lower')">a–z</button>
+      <button onclick="showCharSet('digits')">0–9</button>
+      <button onclick="showCharSet('punct')">Punct</button>
+      <button onclick="showCharSet('latin1')">Latin-1</button>
+      <button onclick="showCharSet('custom')">Custom</button>
+    </div>
+    <div id="customCharRow" style="display:none;margin-bottom:5px">
+      <div class="lbl">Unicode (hex or char)</div>
+      <div style="display:flex;gap:4px"><input type="text" id="customCharInput" placeholder="0041 or A" style="flex:1"><button onclick="jumpToCustomChar()">Go</button></div>
+    </div>
+    <div id="charGrid"></div>
+    <div style="margin-top:5px;font-size:.65rem;color:var(--muted)">Active: <span id="activeCharLbl" style="color:var(--accent4);font-size:.78rem;font-weight:700">A</span> <span id="activeCharCode" style="color:var(--muted);font-size:.63rem"></span></div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">Glyph Library</div>
+    <div id="glyphList"></div>
+    <div style="display:flex;gap:3px;margin-top:6px;flex-wrap:wrap">
+      <button onclick="clearCurrentGlyph()" class="danger" style="font-size:.66rem">✕ Clear</button>
+      <button onclick="copyGlyph()" style="font-size:.66rem">⎘ Copy</button>
+      <button onclick="pasteGlyph()" style="font-size:.66rem">⎙ Paste</button>
+      <button onclick="shiftLeft()"  style="font-size:.7rem;padding:3px 6px" title="Shift left">←</button>
+      <button onclick="shiftRight()" style="font-size:.7rem;padding:3px 6px" title="Shift right">→</button>
+      <button onclick="shiftUp()"    style="font-size:.7rem;padding:3px 6px" title="Shift up">↑</button>
+      <button onclick="shiftDown()"  style="font-size:.7rem;padding:3px 6px" title="Shift down">↓</button>
+      <button onclick="flipH()"  style="font-size:.66rem">↔</button>
+      <button onclick="flipV()"  style="font-size:.66rem">↕</button>
+      <button onclick="invertGlyph()" style="font-size:.66rem">⊛ Inv</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- CENTER -->
+<div class="center-area">
+  <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:center">
+    <button class="tool-btn active-cyan" id="toolDraw"    onclick="setTool('draw')"    title="Draw [D]">✏</button>
+    <button class="tool-btn"             id="toolErase"   onclick="setTool('erase')"   title="Erase [E]">◻</button>
+    <button class="tool-btn"             id="toolFill"    onclick="setTool('fill')"    title="Fill [F]">▣</button>
+    <button class="tool-btn"             id="toolPick"    onclick="setTool('pick')"    title="Pick [K]">⊕</button>
+    <button class="tool-btn"             id="toolLine"    onclick="setTool('line')"    title="Line [L]">╱</button>
+    <button class="tool-btn"             id="toolRect"    onclick="setTool('rect')"    title="Rect [R]">▭</button>
+    <div style="width:1px;height:22px;background:var(--border);margin:0 2px"></div>
+    <button class="tool-btn" onclick="undo()" id="btnUndo" title="Undo Ctrl+Z" disabled>↩</button>
+    <button class="tool-btn" onclick="redo()" id="btnRedo" title="Redo Ctrl+Y" disabled>↪</button>
+    <div style="width:1px;height:22px;background:var(--border);margin:0 2px"></div>
+    <button class="tool-btn" onclick="prevChar()" title="Prev char">‹</button>
+    <span style="font-size:.8rem;color:var(--accent4);min-width:26px;text-align:center;font-weight:700" id="toolbarChar">A</span>
+    <button class="tool-btn" onclick="nextChar()" title="Next char">›</button>
+  </div>
+
+  <div id="canvasWrap">
+    <canvas id="glyphCanvas"></canvas>
+    <canvas id="guideCanvas"></canvas>
+  </div>
+
+  <div style="width:100%;max-width:640px">
+    <div style="font-size:.63rem;color:var(--muted);margin-bottom:4px;display:flex;align-items:center;gap:8px">
+      <span>▸ PREVIEW</span>
+      <span style="color:var(--border)">|</span>
+      <label style="display:flex;align-items:center;gap:4px">
+        <span style="color:var(--muted)">bg</span>
+        <input type="color" id="previewBg" value="#0a0f14" style="width:22px;height:16px;padding:0;border:1px solid var(--border);background:none;cursor:pointer">
+      </label>
+      <label style="display:flex;align-items:center;gap:4px">
+        <span style="color:var(--muted)">scale</span>
+        <input type="number" id="previewScale" value="3" min="1" max="8" style="width:36px;font-size:.7rem" oninput="renderPreview()">
+      </label>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <input type="text" id="previewText" value="Hello World! 0123" style="flex:1;font-size:.76rem" oninput="renderPreview()">
+    </div>
+    <div style="overflow-x:auto;overflow-y:hidden;max-width:100%;border:1px solid var(--border);border-radius:3px;padding:4px;background:#0a0f14">
+      <canvas id="previewCanvas" style="display:block;image-rendering:pixelated"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right-panel">
+
+  <div class="section">
+    <div class="stitle">Color</div>
+    <div id="colorSwatch"></div>
+    <div style="display:flex;gap:7px;align-items:center;margin-bottom:7px">
+      <input type="color" id="nativePick" value="#ffffff" oninput="onNativePick(this.value)" style="width:36px;height:36px;border:2px solid var(--border);border-radius:4px;cursor:pointer;padding:0;background:none;flex-shrink:0">
+      <div style="flex:1">
+        <div class="sl-row"><em style="color:#ff7777">R</em><input type="range" id="slR" min="0" max="255" value="255" oninput="onSlider()" style="accent-color:#ff7777"><span id="vR">255</span></div>
+        <div class="sl-row"><em style="color:#77ff99">G</em><input type="range" id="slG" min="0" max="255" value="255" oninput="onSlider()" style="accent-color:#77ff99"><span id="vG">255</span></div>
+        <div class="sl-row"><em style="color:#77aaff">B</em><input type="range" id="slB" min="0" max="255" value="255" oninput="onSlider()" style="accent-color:#77aaff"><span id="vB">255</span></div>
+      </div>
+    </div>
+    <div class="pal-grid" id="palGrid"></div>
+    <div style="font-size:.62rem;color:var(--muted);margin-top:6px;line-height:1.5">Multi-color pixels are preserved in PNG sprite sheet. BDF/C exports use 1-bit (on/off) from alpha.</div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">Export</div>
+    <button class="ok" style="width:100%;margin-bottom:4px" onclick="exportBDF()">↓ Download .BDF Font</button>
+    <button style="width:100%;margin-bottom:4px" onclick="exportAndShowC()">↓ Download .h (C array)</button>
+    <button style="width:100%;margin-bottom:4px" onclick="exportPNG()">↓ Sprite Sheet PNG</button>
+    <button style="width:100%;margin-bottom:4px" onclick="showImportModal()">↑ Import .BDF</button>
+    <div style="font-size:.62rem;color:var(--muted);line-height:1.7;margin-top:4px">
+      <b style="color:var(--accent4)">.BDF</b> — Bitmap Distribution Format. Works with fontforge, pygame, LVGL, embedded displays.<br>
+      <b style="color:var(--accent4)">.h</b> — C header for Arduino, ESP32, Adafruit GFX, u8g2.<br>
+      <b style="color:var(--accent4)">PNG</b> — Full-color sprite sheet for game engines.
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">Auto-Fill</div>
+    <button onclick="autoFillBasic()" style="width:100%;margin-bottom:4px;font-size:.72rem">⟳ Generate Skeleton A–Z + 0–9</button>
+    <div style="font-size:.62rem;color:var(--muted);line-height:1.5">Draws simple 1-px stroke glyphs as starting points to edit.</div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">Shortcuts</div>
+    <div style="font-size:.64rem;color:var(--muted);line-height:2.1">
+      <span class="kbd">D</span> Draw &nbsp;<span class="kbd">E</span> Erase &nbsp;<span class="kbd">F</span> Fill<br>
+      <span class="kbd">K</span> Pick &nbsp;<span class="kbd">L</span> Line &nbsp;<span class="kbd">R</span> Rect<br>
+      <span class="kbd">←</span><span class="kbd">→</span> Prev / Next char<br>
+      <span class="kbd">Ctrl+Z</span> Undo &nbsp;<span class="kbd">Ctrl+Y</span> Redo<br>
+      <span class="kbd">Ctrl+A</span> Fill all &nbsp;<span class="kbd">Del</span> Clear glyph
+    </div>
+  </div>
+
+</div>
+</div>
+
+<div id="statusBar">
+  <span id="statusMsg">ready — select a character, then draw its glyph!</span>
+  <span style="margin-left:auto;font-size:.65rem;color:var(--muted)" id="histLbl">history: 0/0</span>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-bg" id="importModal">
+  <div class="modal">
+    <button class="mcl" onclick="closeModal('importModal')">✕</button>
+    <h2>Import BDF Font</h2>
+    <p style="font-size:.7rem;color:var(--muted);margin-bottom:8px">Paste BDF content or load a .bdf file. Existing glyphs will be merged/overwritten.</p>
+    <textarea id="bdfImportText" rows="9" placeholder="Paste BDF content here…" style="margin-bottom:8px;font-size:.63rem"></textarea>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button onclick="document.getElementById('bdfFileInput').click()" style="flex:1">📂 Load .bdf File</button>
+      <input type="file" id="bdfFileInput" accept=".bdf" style="display:none" onchange="loadBDFFile(this)">
+    </div>
+    <div style="display:flex;gap:7px;justify-content:flex-end">
+      <button onclick="closeModal('importModal')">Cancel</button>
+      <button class="ok" onclick="importBDF()">✓ Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- C Code Modal -->
+<div class="modal-bg" id="codeModal">
+  <div class="modal" style="width:500px">
+    <button class="mcl" onclick="closeModal('codeModal')">✕</button>
+    <h2>C Header — Preview</h2>
+    <pre class="code" id="codePreview"></pre>
+    <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px">
+      <button onclick="closeModal('codeModal')">Close</button>
+      <button class="ok" onclick="copyCode()">⎘ Copy All</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════ STATE
+let cellW=8,cellH=12,zoom=12;
+let color={r:255,g:255,b:255};
+let tool='draw';
+let isPainting=false;
+let shapeStart=null;
+
+const glyphData={};  // codepoint -> Uint8ClampedArray (rgba)
+let activeChar='A';
+let glyphClipboard=null;
+
+const MAX_HIST=40;
+let undoStack=[],redoStack=[];
+
+const canvas=document.getElementById('glyphCanvas');
+const ctx=canvas.getContext('2d');
+const guideCv=document.getElementById('guideCanvas');
+const gctx=guideCv.getContext('2d');
+
+function status(m){document.getElementById('statusMsg').textContent=m}
+function toHex(r,g,b){return'#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('')}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+
+// ═══════════════════════════════════ GLYPH DATA
+function getOrCreate(ch){
+  const cp=ch.codePointAt(0);
+  if(!glyphData[cp])glyphData[cp]=new Uint8ClampedArray(cellW*cellH*4);
+  return glyphData[cp];
+}
+function currentGlyph(){return getOrCreate(activeChar)}
+
+function setPixel(data,x,y,r,g,b,a){
+  if(x<0||x>=cellW||y<0||y>=cellH)return;
+  const i=(y*cellW+x)*4;data[i]=r;data[i+1]=g;data[i+2]=b;data[i+3]=a;
+}
+function getPixel(data,x,y){
+  const i=(y*cellW+x)*4;
+  return{r:data[i],g:data[i+1],b:data[i+2],a:data[i+3]};
+}
+
+// ═══════════════════════════════════ CANVAS SETUP
+function resizeCell(){
+  const nw=Math.max(4,Math.min(32,+document.getElementById('cellW').value||8));
+  const nh=Math.max(4,Math.min(48,+document.getElementById('cellH').value||12));
+  document.getElementById('cellW').value=nw;
+  document.getElementById('cellH').value=nh;
+  const ow=cellW,oh=cellH;
+  cellW=nw;cellH=nh;
+  for(const cp in glyphData){
+    const old=glyphData[cp];
+    const nd=new Uint8ClampedArray(nw*nh*4);
+    for(let y=0;y<Math.min(nh,oh);y++)
+      for(let x=0;x<Math.min(nw,ow);x++){
+        const si=(y*ow+x)*4,di=(y*nw+x)*4;
+        nd[di]=old[si];nd[di+1]=old[si+1];nd[di+2]=old[si+2];nd[di+3]=old[si+3];
+      }
+    glyphData[cp]=nd;
+  }
+  undoStack=[];redoStack=[];updateHistBtn();
+  applyZoom();status('Cell: '+nw+'×'+nh);
+}
+
+function applyZoom(){
+  zoom=+document.getElementById('zoomSl').value;
+  document.getElementById('zoomLbl').textContent=zoom+'×';
+  canvas.width=cellW;canvas.height=cellH;
+  canvas.style.width=(cellW*zoom)+'px';canvas.style.height=(cellH*zoom)+'px';
+  guideCv.width=cellW;guideCv.height=cellH;
+  guideCv.style.width=(cellW*zoom)+'px';guideCv.style.height=(cellH*zoom)+'px';
+  redrawCanvas();redrawGuides();
+}
+
+function redrawCanvas(){
+  ctx.fillStyle='#0a0f14';ctx.fillRect(0,0,cellW,cellH);
+  const d=currentGlyph();
+  for(let y=0;y<cellH;y++)for(let x=0;x<cellW;x++){
+    const i=(y*cellW+x)*4;
+    if(d[i+3]>0){ctx.fillStyle=`rgba(${d[i]},${d[i+1]},${d[i+2]},1)`;ctx.fillRect(x,y,1,1);}
+  }
+}
+
+function redrawGuides(){
+  gctx.clearRect(0,0,cellW,cellH);
+  const showG=document.getElementById('showGrid').checked;
+  const showGu=document.getElementById('showGuides').checked;
+  const ascent=+document.getElementById('fontAscent').value||10;
+  const descent=+document.getElementById('fontDescent').value||2;
+  const baseline=cellH-descent;
+  if(showG){
+    gctx.strokeStyle='rgba(30,45,61,0.85)';gctx.lineWidth=.5/zoom;
+    for(let x=0;x<=cellW;x++){gctx.beginPath();gctx.moveTo(x,0);gctx.lineTo(x,cellH);gctx.stroke();}
+    for(let y=0;y<=cellH;y++){gctx.beginPath();gctx.moveTo(0,y);gctx.lineTo(cellW,y);gctx.stroke();}
+  }
+  if(showGu){
+    const draw=(y,color)=>{gctx.strokeStyle=color;gctx.lineWidth=1/zoom;gctx.beginPath();gctx.moveTo(0,y);gctx.lineTo(cellW,y);gctx.stroke();};
+    draw(baseline,'rgba(255,45,120,.7)');
+    draw(baseline-ascent,'rgba(0,240,255,.5)');
+    draw(baseline-Math.round(ascent*.6),'rgba(255,224,0,.4)');
+  }
+}
+
+// ═══════════════════════════════════ COORDS
+function getXY(e){
+  const r=canvas.getBoundingClientRect();
+  return{x:clamp(Math.floor((e.clientX-r.left)/r.width*cellW),0,cellW-1),y:clamp(Math.floor((e.clientY-r.top)/r.height*cellH),0,cellH-1)};
+}
+
+// ═══════════════════════════════════ HISTORY
+function pushHistory(){
+  undoStack.push(new Uint8ClampedArray(currentGlyph()));
+  if(undoStack.length>MAX_HIST)undoStack.shift();
+  redoStack=[];updateHistBtn();
+}
+function undo(){
+  if(!undoStack.length)return;
+  redoStack.push(new Uint8ClampedArray(currentGlyph()));
+  glyphData[activeChar.codePointAt(0)]=undoStack.pop();
+  updateHistBtn();redrawCanvas();renderPreview();updateGlyphList();status('Undo');
+}
+function redo(){
+  if(!redoStack.length)return;
+  undoStack.push(new Uint8ClampedArray(currentGlyph()));
+  glyphData[activeChar.codePointAt(0)]=redoStack.pop();
+  updateHistBtn();redrawCanvas();renderPreview();updateGlyphList();status('Redo');
+}
+function updateHistBtn(){
+  document.getElementById('btnUndo').disabled=!undoStack.length;
+  document.getElementById('btnRedo').disabled=!redoStack.length;
+  document.getElementById('histLbl').textContent=`history: ${undoStack.length}/${MAX_HIST}`;
+}
+
+// ═══════════════════════════════════ LINE / RECT (Bresenham)
+function bline(data,x0,y0,x1,y1,r,g,b,erase){
+  const dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;
+  let err=dx-dy;
+  for(;;){
+    erase?setPixel(data,x0,y0,0,0,0,0):setPixel(data,x0,y0,r,g,b,255);
+    if(x0===x1&&y0===y1)break;
+    const e2=2*err;
+    if(e2>-dy){err-=dy;x0+=sx;}
+    if(e2<dx){err+=dx;y0+=sy;}
+  }
+}
+function brect(data,x0,y0,x1,y1,r,g,b,erase){
+  const lx=Math.min(x0,x1),rx=Math.max(x0,x1),ly=Math.min(y0,y1),ry=Math.max(y0,y1);
+  for(let x=lx;x<=rx;x++){erase?(setPixel(data,x,ly,0,0,0,0),setPixel(data,x,ry,0,0,0,0)):(setPixel(data,x,ly,r,g,b,255),setPixel(data,x,ry,r,g,b,255));}
+  for(let y=ly;y<=ry;y++){erase?(setPixel(data,lx,y,0,0,0,0),setPixel(data,rx,y,0,0,0,0)):(setPixel(data,lx,y,r,g,b,255),setPixel(data,rx,y,r,g,b,255));}
+}
+
+// shape preview on canvas (non-destructive)
+function drawShapePreview(x1,y1){
+  if(!shapeStart)return;
+  redrawCanvas();
+  const tmp=new Uint8ClampedArray(currentGlyph());
+  if(tool==='line')bline(tmp,shapeStart.x,shapeStart.y,x1,y1,color.r,color.g,color.b,false);
+  else brect(tmp,shapeStart.x,shapeStart.y,x1,y1,color.r,color.g,color.b,false);
+  for(let y=0;y<cellH;y++)for(let x=0;x<cellW;x++){
+    const i=(y*cellW+x)*4;
+    if(tmp[i+3]>0){ctx.fillStyle=`rgba(${tmp[i]},${tmp[i+1]},${tmp[i+2]},1)`;ctx.fillRect(x,y,1,1);}
+  }
+}
+
+// ═══════════════════════════════════ PAINT
+function paintPixel(x,y){
+  const d=currentGlyph();
+  if(tool==='draw'){setPixel(d,x,y,color.r,color.g,color.b,255);redrawCanvas();}
+  else if(tool==='erase'){setPixel(d,x,y,0,0,0,0);redrawCanvas();}
+  else if(tool==='fill'){floodFill(x,y);redrawCanvas();renderPreview();updateGlyphList();}
+  else if(tool==='pick'){const p=getPixel(d,x,y);if(p.a>0){color={r:p.r,g:p.g,b:p.b};updateSwatch();}setTool('draw');status('Picked '+toHex(color.r,color.g,color.b));}
+}
+
+function floodFill(sx,sy){
+  const d=currentGlyph();
+  const tp=getPixel(d,sx,sy);
+  const{r:fr,g:fg,b:fb}=color;
+  if(tp.r===fr&&tp.g===fg&&tp.b===fb&&tp.a===255)return;
+  const vis=new Uint8Array(cellW*cellH),stk=[[sx,sy]];
+  while(stk.length){
+    const[x,y]=stk.pop();
+    if(x<0||x>=cellW||y<0||y>=cellH)continue;
+    const vi=y*cellW+x;if(vis[vi])continue;
+    const p=getPixel(d,x,y);
+    if(p.r!==tp.r||p.g!==tp.g||p.b!==tp.b||p.a!==tp.a)continue;
+    vis[vi]=1;setPixel(d,x,y,fr,fg,fb,255);
+    stk.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+  }
+}
+
+// ═══════════════════════════════════ MOUSE
+canvas.addEventListener('mousedown',e=>{
+  if(e.button!==0)return;
+  const{x,y}=getXY(e);
+  if(tool==='line'||tool==='rect'){pushHistory();shapeStart={x,y};isPainting=true;return;}
+  if(tool==='fill'||tool==='pick'){paintPixel(x,y);return;}
+  pushHistory();isPainting=true;paintPixel(x,y);updateGlyphList();
+});
+canvas.addEventListener('mousemove',e=>{
+  const{x,y}=getXY(e);
+  status(`pos: ${x},${y}  │  char: ${activeChar} (U+${activeChar.codePointAt(0).toString(16).toUpperCase().padStart(4,'0')})`);
+  if(!isPainting)return;
+  if((tool==='line'||tool==='rect')&&shapeStart){drawShapePreview(x,y);return;}
+  if(tool==='draw'||tool==='erase'){paintPixel(x,y);updateGlyphList();}
+});
+canvas.addEventListener('mouseup',e=>{
+  const{x,y}=getXY(e);
+  if((tool==='line'||tool==='rect')&&shapeStart){
+    const d=currentGlyph();
+    if(tool==='line')bline(d,shapeStart.x,shapeStart.y,x,y,color.r,color.g,color.b,false);
+    else brect(d,shapeStart.x,shapeStart.y,x,y,color.r,color.g,color.b,false);
+    shapeStart=null;redrawCanvas();renderPreview();updateGlyphList();
+  }
+  isPainting=false;renderPreview();updateGlyphList();
+});
+canvas.addEventListener('mouseleave',()=>{isPainting=false;});
+document.addEventListener('mouseup',()=>{isPainting=false;});
+canvas.addEventListener('touchstart',e=>{e.preventDefault();const{x,y}=getXY(e.touches[0]);pushHistory();isPainting=true;paintPixel(x,y);},{passive:false});
+canvas.addEventListener('touchmove',e=>{e.preventDefault();if(!isPainting)return;const{x,y}=getXY(e.touches[0]);if(tool==='draw'||tool==='erase')paintPixel(x,y);},{passive:false});
+canvas.addEventListener('touchend',()=>{isPainting=false;renderPreview();updateGlyphList();});
+
+// ═══════════════════════════════════ TOOLS
+function setTool(t){
+  tool=t;
+  document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active-cyan'));
+  const b=document.getElementById('tool'+t.charAt(0).toUpperCase()+t.slice(1));
+  if(b)b.classList.add('active-cyan');
+  canvas.className='tool-'+t;
+}
+
+// ═══════════════════════════════════ GLYPH OPS
+function clearCurrentGlyph(){pushHistory();glyphData[activeChar.codePointAt(0)]=new Uint8ClampedArray(cellW*cellH*4);redrawCanvas();renderPreview();updateGlyphList();status('Cleared '+activeChar);}
+function copyGlyph(){glyphClipboard=new Uint8ClampedArray(currentGlyph());status('Glyph copied');}
+function pasteGlyph(){if(!glyphClipboard){status('⚠ Clipboard empty');return;}pushHistory();glyphData[activeChar.codePointAt(0)]=new Uint8ClampedArray(glyphClipboard);redrawCanvas();renderPreview();updateGlyphList();status('Glyph pasted');}
+
+function shiftLeft(){pushHistory();const d=currentGlyph();for(let y=0;y<cellH;y++){for(let x=0;x<cellW-1;x++){const p=getPixel(d,x+1,y);setPixel(d,x,y,p.r,p.g,p.b,p.a);}setPixel(d,cellW-1,y,0,0,0,0);}redrawCanvas();renderPreview();updateGlyphList();}
+function shiftRight(){pushHistory();const d=currentGlyph();for(let y=0;y<cellH;y++){for(let x=cellW-1;x>0;x--){const p=getPixel(d,x-1,y);setPixel(d,x,y,p.r,p.g,p.b,p.a);}setPixel(d,0,y,0,0,0,0);}redrawCanvas();renderPreview();updateGlyphList();}
+function shiftUp(){pushHistory();const d=currentGlyph();for(let x=0;x<cellW;x++){for(let y=0;y<cellH-1;y++){const p=getPixel(d,x,y+1);setPixel(d,x,y,p.r,p.g,p.b,p.a);}setPixel(d,x,cellH-1,0,0,0,0);}redrawCanvas();renderPreview();updateGlyphList();}
+function shiftDown(){pushHistory();const d=currentGlyph();for(let x=0;x<cellW;x++){for(let y=cellH-1;y>0;y--){const p=getPixel(d,x,y-1);setPixel(d,x,y,p.r,p.g,p.b,p.a);}setPixel(d,x,0,0,0,0);}redrawCanvas();renderPreview();updateGlyphList();}
+function flipH(){pushHistory();const d=currentGlyph();for(let y=0;y<cellH;y++)for(let x=0;x<Math.floor(cellW/2);x++){const p1=getPixel(d,x,y),p2=getPixel(d,cellW-1-x,y);setPixel(d,x,y,p2.r,p2.g,p2.b,p2.a);setPixel(d,cellW-1-x,y,p1.r,p1.g,p1.b,p1.a);}redrawCanvas();renderPreview();updateGlyphList();}
+function flipV(){pushHistory();const d=currentGlyph();for(let x=0;x<cellW;x++)for(let y=0;y<Math.floor(cellH/2);y++){const p1=getPixel(d,x,y),p2=getPixel(d,x,cellH-1-y);setPixel(d,x,y,p2.r,p2.g,p2.b,p2.a);setPixel(d,x,cellH-1-y,p1.r,p1.g,p1.b,p1.a);}redrawCanvas();renderPreview();updateGlyphList();}
+function invertGlyph(){pushHistory();const d=currentGlyph();for(let i=0;i<cellW*cellH;i++){const idx=i*4;if(d[idx+3]>0){d[idx]=255-d[idx];d[idx+1]=255-d[idx+1];d[idx+2]=255-d[idx+2];}else{d[idx]=d[idx+1]=d[idx+2]=255;d[idx+3]=255;}}redrawCanvas();renderPreview();updateGlyphList();}
+
+// ═══════════════════════════════════ CHAR SETS
+const CHAR_SETS={
+  basic:' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~',
+  upper:'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  lower:'abcdefghijklmnopqrstuvwxyz',
+  digits:'0123456789',
+  punct:' !"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~',
+  latin1:'ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ',
+  custom:''
+};
+let currentSet='basic';
+
+function showCharSet(name){
+  currentSet=name;
+  document.getElementById('customCharRow').style.display=name==='custom'?'block':'none';
+  document.querySelectorAll('.char-tabs button').forEach((b,i)=>{
+    b.classList.toggle('active',['basic','upper','lower','digits','punct','latin1','custom'][i]===name);
+  });
+  buildCharGrid();
+}
+
+function buildCharGrid(){
+  const g=document.getElementById('charGrid');g.innerHTML='';
+  const chars=CHAR_SETS[currentSet];
+  if(!chars){g.innerHTML='<div style="font-size:.65rem;color:var(--muted);padding:4px">Enter a custom char above.</div>';return;}
+  [...chars].forEach(ch=>{
+    const b=document.createElement('button');b.className='ch-btn';
+    b.textContent=ch===' '?'·':ch;b.title='U+'+ch.codePointAt(0).toString(16).toUpperCase().padStart(4,'0');
+    const cp=ch.codePointAt(0);
+    if(glyphData[cp]&&glyphData[cp].some((v,i)=>i%4===3&&v>0))b.classList.add('has-data');
+    if(ch===activeChar)b.classList.add('active-ch');
+    b.onclick=()=>selectChar(ch);
+    g.appendChild(b);
+  });
+}
+
+function selectChar(ch){
+  undoStack=[];redoStack=[];updateHistBtn();
+  activeChar=ch;
+  document.getElementById('activeCharLbl').textContent=ch===' '?'SPACE':ch;
+  document.getElementById('activeCharCode').textContent='U+'+ch.codePointAt(0).toString(16).toUpperCase().padStart(4,'0');
+  document.getElementById('toolbarChar').textContent=ch===' '?'SPC':ch;
+  buildCharGrid();redrawCanvas();
+  status('Editing: '+(ch===' '?'SPACE':ch)+' (U+'+ch.codePointAt(0).toString(16).toUpperCase().padStart(4,'0')+')');
+}
+
+function jumpToCustomChar(){
+  const v=document.getElementById('customCharInput').value.trim();if(!v)return;
+  let ch;
+  if(v.length===1)ch=v;
+  else{const cp=parseInt(v,16);if(!isNaN(cp))ch=String.fromCodePoint(cp);}
+  if(ch)selectChar(ch);
+}
+
+function prevChar(){const c=CHAR_SETS[currentSet];if(!c)return;const a=[...c],i=a.indexOf(activeChar);if(i>0)selectChar(a[i-1]);}
+function nextChar(){const c=CHAR_SETS[currentSet];if(!c)return;const a=[...c],i=a.indexOf(activeChar);if(i>=0&&i<a.length-1)selectChar(a[i+1]);}
+
+// ═══════════════════════════════════ GLYPH LIST
+function updateGlyphList(){
+  const list=document.getElementById('glyphList');list.innerHTML='';
+  const cps=Object.keys(glyphData).map(Number).filter(cp=>glyphData[cp]&&glyphData[cp].some((v,i)=>i%4===3&&v>0)).sort((a,b)=>a-b);
+  cps.forEach(cp=>{
+    const ch=String.fromCodePoint(cp),d=glyphData[cp];
+    const wrap=document.createElement('div');wrap.className='gl-item'+(ch===activeChar?' sel':'');
+    const cv=document.createElement('canvas');cv.width=cellW;cv.height=cellH;
+    const c=cv.getContext('2d');c.fillStyle='#0a0f14';c.fillRect(0,0,cellW,cellH);
+    for(let y=0;y<cellH;y++)for(let x=0;x<cellW;x++){const i=(y*cellW+x)*4;if(d[i+3]>0){c.fillStyle=`rgba(${d[i]},${d[i+1]},${d[i+2]},1)`;c.fillRect(x,y,1,1);}}
+    const lbl=document.createElement('div');lbl.className='gl-lbl';lbl.textContent=ch===' '?'SPC':ch;
+    wrap.append(cv,lbl);wrap.onclick=()=>selectChar(ch);
+    list.appendChild(wrap);
+  });
+  document.getElementById('hdrInfo').textContent=cps.length+' glyph'+(cps.length!==1?'s':'')+' defined';
+}
+
+// ═══════════════════════════════════ PREVIEW
+function renderPreview(){
+  const text=document.getElementById('previewText').value||'';
+  const scale=Math.max(1,Math.min(8,+document.getElementById('previewScale').value||3));
+  const bg=document.getElementById('previewBg').value||'#0a0f14';
+  const cols=text.length||1;
+  const pw=(cols*(cellW+1)+1)*scale;
+  const ph=(cellH+2)*scale;
+  const cv=document.getElementById('previewCanvas');
+  cv.width=pw;cv.height=ph;cv.style.height=ph+'px';
+  const c=cv.getContext('2d');
+  c.fillStyle=bg;c.fillRect(0,0,pw,ph);
+  let xOff=0;
+  for(const ch of text){
+    const d=glyphData[ch.codePointAt(0)];
+    if(d)for(let y=0;y<cellH;y++)for(let x=0;x<cellW;x++){const i=(y*cellW+x)*4;if(d[i+3]>0){c.fillStyle=`rgb(${d[i]},${d[i+1]},${d[i+2]})`;c.fillRect((xOff+x)*scale,scale+y*scale,scale,scale);}}
+    xOff+=cellW+1;
+  }
+}
+
+// ═══════════════════════════════════ COLOR
+function updateSwatch(){
+  document.getElementById('colorSwatch').style.background=toHex(color.r,color.g,color.b);
+  document.getElementById('nativePick').value=toHex(color.r,color.g,color.b);
+  document.getElementById('slR').value=color.r;document.getElementById('vR').textContent=color.r;
+  document.getElementById('slG').value=color.g;document.getElementById('vG').textContent=color.g;
+  document.getElementById('slB').value=color.b;document.getElementById('vB').textContent=color.b;
+}
+function onSlider(){
+  color.r=+document.getElementById('slR').value;document.getElementById('vR').textContent=color.r;
+  color.g=+document.getElementById('slG').value;document.getElementById('vG').textContent=color.g;
+  color.b=+document.getElementById('slB').value;document.getElementById('vB').textContent=color.b;
+  document.getElementById('colorSwatch').style.background=toHex(color.r,color.g,color.b);
+  document.getElementById('nativePick').value=toHex(color.r,color.g,color.b);
+}
+function onNativePick(hex){color.r=parseInt(hex.slice(1,3),16);color.g=parseInt(hex.slice(3,5),16);color.b=parseInt(hex.slice(5,7),16);updateSwatch();}
+
+const PAL=[[255,255,255],[220,220,220],[160,160,160],[100,100,100],[50,50,50],[0,0,0],[255,0,0],[255,100,0],[255,220,0],[0,200,60],[0,180,220],[0,80,255],[160,0,255],[255,0,180],[0,255,200],[255,180,100],[0,240,255],[255,45,120],[255,224,0],[162,89,255],[0,255,136],[255,100,50],[100,200,255],[255,150,180]];
+(function(){const g=document.getElementById('palGrid');PAL.forEach(([r,gb,b])=>{const s=document.createElement('div');s.className='pal-sw';s.style.background=toHex(r,gb,b);s.title=toHex(r,gb,b);s.onclick=()=>{color={r,g:gb,b};updateSwatch();document.querySelectorAll('.pal-sw').forEach(x=>x.classList.remove('sel'));s.classList.add('sel');};g.appendChild(s);});})();
+
+// ═══════════════════════════════════ KEYBOARD
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+  const k=e.key.toLowerCase();
+  if(e.ctrlKey||e.metaKey){
+    if(k==='z'){e.preventDefault();undo();}
+    else if(k==='y'){e.preventDefault();redo();}
+    else if(k==='a'){e.preventDefault();pushHistory();const d=currentGlyph();for(let i=0;i<cellW*cellH;i++){const idx=i*4;d[idx]=color.r;d[idx+1]=color.g;d[idx+2]=color.b;d[idx+3]=255;}redrawCanvas();renderPreview();updateGlyphList();}
+    return;
+  }
+  const toolMap={d:'draw',e:'erase',f:'fill',k:'pick',l:'line',r:'rect'};
+  if(toolMap[k]){setTool(toolMap[k]);return;}
+  if(k==='delete'||k==='backspace'){clearCurrentGlyph();return;}
+  if(k==='arrowleft')prevChar();
+  if(k==='arrowright')nextChar();
+});
+
+// ═══════════════════════════════════ AUTO FILL
+function autoFillBasic(){
+  const w=cellW,h=cellH,desc=+document.getElementById('fontDescent').value||2;
+  const bl=h-desc,top=Math.max(1,bl-Math.round(h*.7)),mid=Math.floor((top+bl)/2);
+  const t=1,r=w-2,midx=Math.floor(w/2);
+
+  function g(cp){glyphData[cp]=new Uint8ClampedArray(w*h*4);return glyphData[cp];}
+  function px(d,x,y){setPixel(d,x,y,255,255,255,255);}
+  function hl(d,x0,x1,y){for(let x=x0;x<=x1;x++)px(d,x,y);}
+  function vl(d,x,y0,y1){for(let y=y0;y<=y1;y++)px(d,x,y);}
+  function rc(d,x0,y0,x1,y1){hl(d,x0,x1,y0);hl(d,x0,x1,y1);vl(d,x0,y0,y1);vl(d,x1,y0,y1);}
+
+  // digits 0-9
+  let d=g(48);rc(d,t,top,r,bl);
+  d=g(49);vl(d,midx,top,bl);hl(d,t,r,bl);px(d,midx-1,top+1);
+  d=g(50);hl(d,t,r,top);vl(d,r,top,mid);hl(d,t,r,mid);vl(d,t,mid,bl);hl(d,t,r,bl);
+  d=g(51);hl(d,t,r,top);hl(d,t,r,mid);hl(d,t,r,bl);vl(d,r,top,bl);
+  d=g(52);vl(d,t,top,mid);vl(d,r,top,bl);hl(d,t,r,mid);
+  d=g(53);hl(d,t,r,top);vl(d,t,top,mid);hl(d,t,r,mid);vl(d,r,mid,bl);hl(d,t,r,bl);
+  d=g(54);hl(d,t,r,top);vl(d,t,top,bl);hl(d,t,r,mid);hl(d,t,r,bl);vl(d,r,mid,bl);
+  d=g(55);hl(d,t,r,top);vl(d,r,top,bl);
+  d=g(56);rc(d,t,top,r,bl);hl(d,t,r,mid);
+  d=g(57);rc(d,t,top,r,mid);hl(d,t,r,bl);vl(d,r,top,bl);
+
+  // A-Z
+  d=g(65);vl(d,t,top+1,bl);vl(d,r,top+1,bl);hl(d,t,r,top);hl(d,t,r,mid);
+  d=g(66);vl(d,t,top,bl);hl(d,t,r-1,top);hl(d,t,r-1,mid);hl(d,t,r-1,bl);vl(d,r,top,mid);vl(d,r,mid,bl);
+  d=g(67);hl(d,t,r,top);hl(d,t,r,bl);vl(d,t,top,bl);
+  d=g(68);vl(d,t,top,bl);hl(d,t,r-1,top);hl(d,t,r-1,bl);vl(d,r,top+1,bl-1);
+  d=g(69);vl(d,t,top,bl);hl(d,t,r,top);hl(d,t,r-1,mid);hl(d,t,r,bl);
+  d=g(70);vl(d,t,top,bl);hl(d,t,r,top);hl(d,t,r-1,mid);
+  d=g(71);hl(d,t,r,top);vl(d,t,top,bl);hl(d,t,r,bl);vl(d,r,mid,bl);hl(d,midx,r,mid);
+  d=g(72);vl(d,t,top,bl);vl(d,r,top,bl);hl(d,t,r,mid);
+  d=g(73);hl(d,t,r,top);hl(d,t,r,bl);vl(d,midx,top,bl);
+  d=g(74);hl(d,t,r,top);vl(d,r,top,bl-1);px(d,r-1,bl);vl(d,t,mid,bl-1);
+  d=g(75);vl(d,t,top,bl);for(let y=top;y<=mid;y++)px(d,t+(mid-y),y);for(let y=mid;y<=bl;y++)px(d,t+(y-mid),y);
+  d=g(76);vl(d,t,top,bl);hl(d,t,r,bl);
+  d=g(77);vl(d,t,top,bl);vl(d,r,top,bl);px(d,t+1,top+1);px(d,midx,top+2);px(d,r-1,top+1);
+  d=g(78);vl(d,t,top,bl);vl(d,r,top,bl);bline(glyphData[78],t,top,r,bl,255,255,255,false);
+  d=g(79);rc(d,t,top,r,bl);
+  d=g(80);vl(d,t,top,bl);hl(d,t,r-1,top);hl(d,t,r-1,mid);vl(d,r,top,mid);
+  d=g(81);rc(d,t,top,r,bl);px(d,midx+1,bl-1);px(d,r,bl);
+  d=g(82);vl(d,t,top,bl);hl(d,t,r-1,top);hl(d,t,r-1,mid);vl(d,r,top,mid);bline(glyphData[82],midx,mid,r,bl,255,255,255,false);
+  d=g(83);hl(d,t,r,top);vl(d,t,top,mid);hl(d,t,r,mid);vl(d,r,mid,bl);hl(d,t,r,bl);
+  d=g(84);hl(d,t,r,top);vl(d,midx,top,bl);
+  d=g(85);vl(d,t,top,bl-1);vl(d,r,top,bl-1);hl(d,t,r,bl);
+  d=g(86);for(let y=top;y<=bl;y++){const xo=Math.round((y-top)/(bl-top)*(midx-t));px(d,t+xo,y);px(d,r-xo,y);}
+  d=g(87);vl(d,t,top,bl);vl(d,r,top,bl);vl(d,midx,mid,bl);
+  d=g(88);bline(glyphData[88],t,top,r,bl,255,255,255,false);bline(glyphData[88],r,top,t,bl,255,255,255,false);
+  d=g(89);bline(glyphData[89],t,top,midx,mid,255,255,255,false);bline(glyphData[89],r,top,midx,mid,255,255,255,false);vl(glyphData[89],midx,mid,bl);
+  d=g(90);hl(d,t,r,top);hl(d,t,r,bl);bline(glyphData[90],r,top,t,bl,255,255,255,false);
+
+  g(32); // space
+  buildCharGrid();updateGlyphList();redrawCanvas();renderPreview();
+  status('Auto-filled A–Z + 0–9 skeletons — refine each glyph to your taste!');
+}
+
+// ═══════════════════════════════════ EXPORT BDF
+function exportBDF(){
+  const name=document.getElementById('fontName').value.trim()||'MyPixelFont';
+  const ascent=+document.getElementById('fontAscent').value||10;
+  const descent=+document.getElementById('fontDescent').value||2;
+  const cps=Object.keys(glyphData).map(Number).filter(cp=>glyphData[cp]&&glyphData[cp].some((v,i)=>i%4===3&&v>0)).sort((a,b)=>a-b);
+  if(!cps.length){status('⚠ No glyphs defined!');return;}
+  const bpr=Math.ceil(cellW/8);
+  let out=`STARTFONT 2.1\nFONT -${name}-Medium-R-Normal--${cellH}-${cellH*10}-75-75-C-${cellW*10}-ISO10646-1\n`;
+  out+=`SIZE ${cellH} 75 75\nFONTBOUNDINGBOX ${cellW} ${cellH} 0 -${descent}\n`;
+  out+=`STARTPROPERTIES 5\nFONT_NAME "${name}"\nFONT_ASCENT ${ascent}\nFONT_DESCENT ${descent}\nCAP_HEIGHT ${ascent}\nX_HEIGHT ${Math.round(ascent*.6)}\nENDPROPERTIES\n`;
+  out+=`CHARS ${cps.length}\n`;
+  for(const cp of cps){
+    const d=glyphData[cp];
+    out+=`STARTCHAR U+${cp.toString(16).toUpperCase().padStart(4,'0')}\nENCODING ${cp}\n`;
+    out+=`SWIDTH ${(cellW+1)*1000} 0\nDWIDTH ${cellW} 0\nBBX ${cellW} ${cellH} 0 -${descent}\nBITMAP\n`;
+    for(let y=0;y<cellH;y++){
+      for(let w=0;w<bpr;w++){
+        let byte=0;
+        for(let b=0;b<8;b++){const x=w*8+b;if(x<cellW&&d[(y*cellW+x)*4+3]>128)byte|=(0x80>>b);}
+        out+=byte.toString(16).toUpperCase().padStart(2,'0');
+      }
+      out+='\n';
+    }
+    out+=`ENDCHAR\n`;
+  }
+  out+=`ENDFONT\n`;
+  dlText(out,name+'.bdf');
+  status(`✓ Exported ${cps.length} glyphs as ${name}.bdf`);
+}
+
+// ═══════════════════════════════════ EXPORT C HEADER
+function buildCHeader(){
+  const name=(document.getElementById('fontName').value.trim()||'MyPixelFont').replace(/\W/g,'_');
+  const ascent=+document.getElementById('fontAscent').value||10;
+  const descent=+document.getElementById('fontDescent').value||2;
+  const cps=Object.keys(glyphData).map(Number).filter(cp=>glyphData[cp]&&glyphData[cp].some((v,i)=>i%4===3&&v>0)).sort((a,b)=>a-b);
+  const bpr=Math.ceil(cellW/8);
+  let out=`/* ${name} — ${cellW}×${cellH} pixel font, generated by Glyph·Forge */\n#pragma once\n#include <stdint.h>\n\n`;
+  out+=`#define ${name.toUpperCase()}_W  ${cellW}\n#define ${name.toUpperCase()}_H  ${cellH}\n`;
+  out+=`#define ${name.toUpperCase()}_ASCENT  ${ascent}\n#define ${name.toUpperCase()}_DESCENT ${descent}\n`;
+  out+=`/* ${bpr} byte(s)/row, ${cellH} rows/glyph, MSB=left */\n\n`;
+  for(const cp of cps){
+    const d=glyphData[cp],safe=cp.toString(16).toUpperCase().padStart(4,'0');
+    out+=`/* '${cp>=32&&cp<127?String.fromCodePoint(cp):'?'}' U+${safe} */\n`;
+    out+=`static const uint8_t ${name}_${safe}[${cellH*bpr}] = {\n`;
+    const rows=[];
+    for(let y=0;y<cellH;y++){
+      const bytes=[];
+      for(let w=0;w<bpr;w++){let byte=0;for(let b=0;b<8;b++){const x=w*8+b;if(x<cellW&&d[(y*cellW+x)*4+3]>128)byte|=(0x80>>b);}bytes.push('0x'+byte.toString(16).toUpperCase().padStart(2,'0'));}
+      rows.push('  '+bytes.join(','));
+    }
+    out+=rows.join(',\n')+'\n};\n\n';
+  }
+  out+=`typedef struct { uint32_t cp; const uint8_t *data; } ${name}_Glyph;\n`;
+  out+=`static const ${name}_Glyph ${name}_glyphs[] = {\n`;
+  for(const cp of cps)out+=`  { ${cp}u, ${name}_${cp.toString(16).toUpperCase().padStart(4,'0')} },\n`;
+  out+=`};\n#define ${name.toUpperCase()}_COUNT ${cps.length}\n`;
+  out+=`\n/* Adafruit GFX example:\n   canvas.drawBitmap(x, y, ${name}_glyphs[i].data, ${cellW}, ${cellH}, FG, BG); */\n`;
+  return out;
+}
+function exportAndShowC(){
+  const code=buildCHeader();
+  const name=(document.getElementById('fontName').value.trim()||'MyPixelFont').replace(/\W/g,'_');
+  dlText(code,name+'.h');
+  document.getElementById('codePreview').textContent=code.slice(0,4000)+(code.length>4000?'\n…(truncated for preview)':'');
+  document.getElementById('codeModal').classList.add('open');
+  status('✓ Downloaded C header');
+}
+function copyCode(){navigator.clipboard.writeText(buildCHeader()).then(()=>status('Code copied!'));}
+
+// ═══════════════════════════════════ EXPORT PNG
+function exportPNG(){
+  const cps=Object.keys(glyphData).map(Number).filter(cp=>glyphData[cp]&&glyphData[cp].some((v,i)=>i%4===3&&v>0)).sort((a,b)=>a-b);
+  if(!cps.length){status('⚠ No glyphs!');return;}
+  const cols=Math.ceil(Math.sqrt(cps.length)),rows=Math.ceil(cps.length/cols),pad=1;
+  const sw=(cellW+pad)*cols+pad,sh=(cellH+pad)*rows+pad;
+  const cv=document.createElement('canvas');cv.width=sw;cv.height=sh;
+  const c=cv.getContext('2d');c.fillStyle='#0a0f14';c.fillRect(0,0,sw,sh);
+  cps.forEach((cp,i)=>{
+    const col=i%cols,row=Math.floor(i/cols),ox=pad+col*(cellW+pad),oy=pad+row*(cellH+pad);
+    const d=glyphData[cp];
+    for(let y=0;y<cellH;y++)for(let x=0;x<cellW;x++){const pi=(y*cellW+x)*4;if(d[pi+3]>0){c.fillStyle=`rgba(${d[pi]},${d[pi+1]},${d[pi+2]},1)`;c.fillRect(ox+x,oy+y,1,1);}}
+  });
+  const name=document.getElementById('fontName').value.trim()||'MyPixelFont';
+  const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=name+'_spritesheet.png';a.click();
+  status(`✓ Sprite sheet ${sw}×${sh} (${cps.length} glyphs)`);
+}
+
+// ═══════════════════════════════════ IMPORT BDF
+function showImportModal(){document.getElementById('importModal').classList.add('open');}
+function loadBDFFile(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>document.getElementById('bdfImportText').value=e.target.result;r.readAsText(f);}
+function importBDF(){
+  const text=document.getElementById('bdfImportText').value;if(!text.trim()){status('⚠ No content');return;}
+  try{
+    const lines=text.split('\n');let cp=0,bitmapMode=false,bitmapLines=[],fw=cellW,fh=cellH,imported=0;
+    for(const raw of lines){
+      const line=raw.trim();
+      if(line.startsWith('FONTBOUNDINGBOX')){const p=line.split(/\s+/);fw=+p[1];fh=+p[2];document.getElementById('fontDescent').value=Math.abs(+p[4]);}
+      if(line.startsWith('FONT_ASCENT'))document.getElementById('fontAscent').value=line.split(/\s+/)[1];
+      if(line.startsWith('ENCODING'))cp=+line.split(/\s+/)[1];
+      if(line==='BITMAP'){bitmapMode=true;bitmapLines=[];}
+      if(bitmapMode&&line!=='BITMAP'&&!line.startsWith('END')&&!line.startsWith('START')&&/^[0-9a-fA-F]+$/.test(line))bitmapLines.push(line);
+      if(line==='ENDCHAR'&&bitmapMode){
+        bitmapMode=false;
+        if(cp>=0&&fw>=1&&fh>=1){
+          if(fw!==cellW||fh!==cellH){cellW=fw;cellH=fh;document.getElementById('cellW').value=fw;document.getElementById('cellH').value=fh;}
+          const d=new Uint8ClampedArray(cellW*cellH*4),bpr=Math.ceil(cellW/8);
+          bitmapLines.forEach((hl,y)=>{if(y>=cellH)return;for(let w=0;w<bpr;w++){const byte=parseInt(hl.slice(w*2,(w+1)*2),16)||0;for(let b=0;b<8;b++){const x=w*8+b;if(x<cellW&&(byte&(0x80>>b)))setPixel(d,x,y,255,255,255,255);}}});
+          glyphData[cp]=d;imported++;
+        }
+      }
+    }
+    applyZoom();buildCharGrid();updateGlyphList();redrawCanvas();renderPreview();
+    closeModal('importModal');status(`✓ Imported ${imported} glyphs`);
+  }catch(e){status('⚠ Parse error: '+e.message);}
+}
+
+// ═══════════════════════════════════ UTILS
+function dlText(text,fname){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'}));a.download=fname;a.click();}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('open');}));
+document.getElementById('previewBg').addEventListener('input',renderPreview);
+
+// ═══════════════════════════════════ BOOT
+applyZoom();
+updateSwatch();
+selectChar('A');
+showCharSet('basic');
+renderPreview();
+status('ready — select a character, then draw its glyph!');
+</script>
+</body>
+</html>
